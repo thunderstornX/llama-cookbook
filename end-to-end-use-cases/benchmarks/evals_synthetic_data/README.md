@@ -125,11 +125,13 @@ The exporter uses only the Python standard library. It reads this example's
 Each input must contain non-empty string `context` and `report` fields. Their
 text is preserved as `input` and `expected_output`. Case IDs come from filenames,
 so adding a file does not renumber existing cases. Invalid or empty datasets
-are rejected before writing the output.
+are rejected before writing the output. Numbered input files are exported in
+numeric order (`data_2.json` before `data_10.json`).
 
 `--judge-model` records your target runner's model identifier; exporting does
 not call that model or require an API key. The suite includes an `llm_judge`
-reference-comparison prompt for the report's six fields. This is an export of
+reference-comparison prompt for the report's six fields and declares a JSON
+output schema containing a score from 0 to 1 and a reason. This is an export of
 the context/report pairs, **not a reproduction of the notebook's QA against
 the source table or its `accuracy_score` calculation**. Review the generated references and
 adapt the grader to your runner before using it for evaluation.

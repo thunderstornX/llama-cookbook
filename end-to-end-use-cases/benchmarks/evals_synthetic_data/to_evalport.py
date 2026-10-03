@@ -5,7 +5,10 @@
 
 import argparse
 import json
+import re
 from pathlib import Path
+
+_DATASET_NAME = re.compile(r"data_(\d+)\.json$")
 
 JUDGE_PROMPT = """Compare the candidate report with the reference report and source context.
 Check factual consistency for student_id, degree_type, salary, mba_spec,
@@ -23,6 +26,24 @@ Candidate report:
 {output}
 """
 
+JUDGE_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "score": {"type": "number", "minimum": 0, "maximum": 1},
+        "reason": {"type": "string"},
+    },
+    "required": ["score", "reason"],
+    "additionalProperties": False,
+}
+
+
+def _case_sort_key(path: Path):
+    """Sort numbered dataset files by their numeric suffix."""
+    match = _DATASET_NAME.fullmatch(path.name)
+    if match:
+        return (0, int(match.group(1)))
+    return (1, path.name)
+
 
 def build_suite(input_dir: Path, judge_model: str) -> dict:
     """Preserve each pair's text and derive stable case IDs from its filename."""
@@ -30,7 +51,7 @@ def build_suite(input_dir: Path, judge_model: str) -> dict:
         raise ValueError("judge_model must be a non-empty model identifier")
     if not input_dir.is_dir():
         raise ValueError(f"Input directory does not exist: {input_dir}")
-    paths = sorted(input_dir.glob("data_*.json"))
+    paths = sorted(input_dir.glob("data_*.json"), key=_case_sort_key)
     if not paths:
         raise ValueError(f"No data_*.json files found in {input_dir}")
 
@@ -63,7 +84,11 @@ def build_suite(input_dir: Path, judge_model: str) -> dict:
             {
                 "id": "gr_hallucination_qa",
                 "type": "llm_judge",
-                "params": {"model": judge_model, "prompt": JUDGE_PROMPT},
+                "params": {
+                    "model": judge_model,
+                    "prompt": JUDGE_PROMPT,
+                    "schema": JUDGE_OUTPUT_SCHEMA,
+                },
             }
         ],
     }

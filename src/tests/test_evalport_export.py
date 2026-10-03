@@ -24,14 +24,21 @@ def test_export_checked_in_dataset():
     suite = exporter.build_suite(EXAMPLE_DIR / "generated_data", "test-judge")
     result = validate_suite(suite)
     assert result.valid, result.errors
-    paths = sorted((EXAMPLE_DIR / "generated_data").glob("data_*.json"))
+    paths = sorted(
+        (EXAMPLE_DIR / "generated_data").glob("data_*.json"),
+        key=exporter._case_sort_key,
+    )
     assert len(suite["test_cases"]) == len(paths) == 12
+    assert [case["id"] for case in suite["test_cases"]] == [
+        f"hallucination_eval_{index}" for index in range(12)
+    ]
     for case, path in zip(suite["test_cases"], paths):
         original = json.loads(path.read_text(encoding="utf-8"))
         assert case["input"] == original["context"]
         assert case["expected_output"] == original["report"]
         assert case["graders"] == [suite["graders"][0]["id"]]
     assert suite["graders"][0]["params"]["model"] == "test-judge"
+    assert suite["graders"][0]["params"]["schema"] == exporter.JUDGE_OUTPUT_SCHEMA
 
 
 def test_case_ids_remain_stable_when_files_are_added(tmp_path):
